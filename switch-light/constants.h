@@ -1,0 +1,4 @@
+#define WLAN_SSID XXXX
+#define WLAN_PASS XXXX
+#define AIO_SERVER      XXXX
+#define AIO_SERVERPORT  XXXX 
