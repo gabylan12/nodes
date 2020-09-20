@@ -1,3 +1,9 @@
+/**
+ * Example use
+ * GET curl -X GET  http://192.168.1.142/sensors
+ * POST curl -X POST --data "{\"light1\":\"OFF\",\"light2\":\"OFF\"}" http://192.168.1.142/sensors
+ */
+
 
 #include <ArduinoJson.h> //https://github.com/bblanchon/ArduinoJson
 #include "Bounce2.h" // https://github.com/thomasfredericks/Bounce2/wiki
@@ -143,14 +149,35 @@ void connectWifi(){
  *  sensors status
  */
 void sensors(){
-
+   digitalWrite(LED_BUILTIN, LOW);
    DynamicJsonDocument doc(1024);
-   deserializeJson(doc, "{}");
-   doc["light1"] = digitalRead(LIGHT_1_PIN)==LOW?"ON":"OFF";
-   doc["light2"] = digitalRead(LIGHT_2_PIN)==LOW?"ON":"OFF"; 
-   String output;
-   serializeJson(doc, output);
-   server.send(200, "application/json", output);
+   if(server.method() == HTTP_GET){
+     deserializeJson(doc, "{}");
+     doc["light1"] = digitalRead(LIGHT_1_PIN)==LOW?"ON":"OFF";
+     doc["light2"] = digitalRead(LIGHT_2_PIN)==LOW?"ON":"OFF"; 
+     String output;
+     serializeJson(doc, output);
+     server.send(200, "application/json", output);
+   }
+   else if (server.method() == HTTP_POST){
+     String body =server.arg("plain");
+     deserializeJson(doc, body);
+     int light = strcmp(doc["light1"],"ON") == 0?HIGH:LOW;
+     int dread = digitalRead(LIGHT_1_PIN);  
+     if(light != dread){
+       digitalWrite(LIGHT_1_PIN, light); 
+     } 
+ 
+     light = strcmp(doc["light2"],"ON") == 0?HIGH:LOW;
+     dread = digitalRead(LIGHT_2_PIN);  
+     if(light != dread){
+       digitalWrite(LIGHT_2_PIN, light); 
+     }     
+     server.send(200, "application/json", body);
+
+   }
+   digitalWrite(LED_BUILTIN, HIGH);
+
 }
 
 
@@ -164,18 +191,18 @@ void MQTT_connect() {
   if (mqtt.connected()) {
       digitalWrite(LED_BUILTIN, LOW);
       Serial.println("MQTT Connected!");
+      digitalWrite(LED_BUILTIN, HIGH);
       return;
   }
 
   Serial.print("Connecting to MQTT... ");
+  digitalWrite(LED_BUILTIN, LOW);
 
   if ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
        mqtt.disconnect();
-       digitalWrite(LED_BUILTIN, HIGH);
-  } else {
-    digitalWrite(LED_BUILTIN, LOW);
-  }
-  
+  } 
+  digitalWrite(LED_BUILTIN, HIGH);
+
   mqttDelay.repeat(); // Count from when the delay expired, not now
 }
 
@@ -192,7 +219,7 @@ void checkButtons(){
   // Get the update value
   int value = debouncer_relay1.read();
   if (value != state_relay1 && value==0) {
-     digitalWrite(LED_BUILTIN, HIGH);
+     digitalWrite(LED_BUILTIN, LOW);
      dread =digitalRead(LIGHT_1_PIN);
      digitalWrite(LIGHT_1_PIN , !dread);  
        if (! publishMqttLight1.publish(dread==LOW?"ON":"OFF")) {
@@ -202,7 +229,7 @@ void checkButtons(){
        }
      Serial.println("change state relay1");
     
-     digitalWrite(LED_BUILTIN, LOW);
+     digitalWrite(LED_BUILTIN, HIGH);
   }
   state_relay1 = value;
 
@@ -212,7 +239,7 @@ void checkButtons(){
   value = debouncer_relay2.read();
   if (value != state_relay2 && value==0) {
      
-     digitalWrite(LED_BUILTIN, HIGH);
+     digitalWrite(LED_BUILTIN, LOW);
      dread =digitalRead(LIGHT_2_PIN);
      digitalWrite(LIGHT_2_PIN, !dread);   
      if (! publishMqttLight2.publish(dread==LOW?"ON":"OFF")) {
@@ -222,7 +249,7 @@ void checkButtons(){
      }
      Serial.println("change state relay2");
 
-     digitalWrite(LED_BUILTIN, LOW);
+     digitalWrite(LED_BUILTIN, HIGH);
   }
 
   state_relay2 = value;
@@ -232,7 +259,7 @@ void checkButtons(){
   // Get the update value
   value = debouncer_turn_off.read();
   if (value==0) {
-     digitalWrite(LED_BUILTIN, HIGH);
+     digitalWrite(LED_BUILTIN, LOW);
      if (! publishMqttLightTurnOff.publish("ON")) {
         Serial.println(F("Failed"));
      } else {
@@ -240,7 +267,7 @@ void checkButtons(){
      }
      Serial.println("change state relay2");
      Serial.println("turn off");
-     digitalWrite(LED_BUILTIN, LOW);
+     digitalWrite(LED_BUILTIN, HIGH);
 
   }
 
